@@ -1,0 +1,12 @@
+[package]
+name = "ima"
+version = "0.0.0"
+edition = "2024"
+description = "A simple image viewer"
+license = "MIT"
+
+[dependencies]
+iced = { git = "https://github.com/iced-rs/iced.git", features = ["image"] }
+
+anywho = "0.1"
+image = "0.25"
