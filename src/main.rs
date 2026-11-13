@@ -21,12 +21,14 @@ fn main() -> anywho::Result<()> {
 }
 
 struct Ima {
-    handle: image::Handle,
+    allocation: Option<image::Allocation>,
     _watcher: notify::RecommendedWatcher,
 }
 
+#[derive(Debug)]
 enum Message {
     Changed(image::Handle),
+    Allocated(Result<image::Allocation, image::Error>),
 }
 
 impl Ima {
@@ -35,23 +37,36 @@ impl Ima {
 
         (
             Self {
-                handle: handle.clone(),
+                allocation: None,
                 _watcher,
             },
-            Task::run(watch, Message::Changed),
+            Task::batch([
+                image::allocate(handle).map(Message::Allocated),
+                Task::run(watch, Message::Changed),
+            ]),
         )
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::Changed(handle) => {
-                self.handle = handle;
+            Message::Changed(handle) => image::allocate(handle).map(Message::Allocated),
+            Message::Allocated(Ok(allocation)) => {
+                self.allocation = Some(allocation);
+
+                Task::none()
+            }
+            Message::Allocated(Err(error)) => {
+                eprintln!("{error}");
+
+                Task::none()
             }
         }
     }
 
     fn view(&self) -> impl Widget<Message> {
-        image(&self.handle).width(Fill).height(Fill)
+        self.allocation
+            .as_ref()
+            .map(|allocation| image(allocation.handle()).width(Fill).height(Fill))
     }
 }
 
